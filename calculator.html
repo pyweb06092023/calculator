@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Calculator</title>
+  <style>
+    :root {
+      --bg: #070707;
+      --panel: #121212;
+      --panel-border: #2a2a2a;
+      --display: #0d0d0d;
+      --display-border: #2e2e2e;
+      --text: #f5f5f5;
+      --muted: #9a9a9a;
+      --button: #1d1d1d;
+      --button-hover: #2a2a2a;
+      --operator: #f2f2f2;
+      --operator-text: #101010;
+      --equals: #efe3a3;
+      --equals-hover: #f7edbc;
+      --shadow: 0 24px 52px rgba(0, 0, 0, 0.5);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      height: 100%;
+    }
+
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top, rgba(255, 255, 255, 0.06), transparent 28%),
+        linear-gradient(180deg, #0b0b0b 0%, #050505 100%);
+      display: grid;
+      place-items: center;
+      padding: 20px;
+    }
+
+    .calculator {
+      width: min(100%, 360px);
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.01)), var(--panel);
+      border: 1px solid var(--panel-border);
+      border-radius: 22px;
+      box-shadow: var(--shadow);
+      padding: 16px;
+    }
+
+    .display {
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent), var(--display);
+      border: 1px solid var(--display-border);
+      border-radius: 16px;
+      padding: 16px;
+      min-height: 118px;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
+    .formula {
+      min-height: 24px;
+      color: var(--muted);
+      font-size: 0.95rem;
+      line-height: 1.3;
+      text-align: right;
+      word-break: break-all;
+    }
+
+    .result {
+      min-height: 42px;
+      font-size: clamp(2rem, 8vw, 2.6rem);
+      font-weight: 700;
+      line-height: 1.1;
+      text-align: right;
+      word-break: break-all;
+    }
+
+    .history {
+      margin: 14px 2px 0;
+      padding: 0;
+      list-style: none;
+      display: grid;
+      gap: 6px;
+      color: #cfcfcf;
+      font-size: 0.8rem;
+    }
+
+    .history li {
+      min-height: 1.2em;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .keys {
+      margin-top: 16px;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+    }
+
+    button {
+      appearance: none;
+      border: 0;
+      border-radius: 14px;
+      min-height: 56px;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 120ms ease, background-color 120ms ease, opacity 120ms ease;
+      user-select: none;
+    }
+
+    button:active {
+      transform: translateY(1px) scale(0.99);
+    }
+
+    .key {
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent), var(--button);
+      color: var(--text);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    }
+
+    .key:hover {
+      background-color: var(--button-hover);
+    }
+
+    .key.operator {
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02)), var(--operator);
+      color: var(--operator-text);
+    }
+
+    .key.operator:hover {
+      opacity: 0.94;
+    }
+
+    .key.equals {
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.04)), var(--equals);
+      color: #211b08;
+      grid-row: span 2;
+    }
+
+    .key.equals:hover {
+      background-color: var(--equals-hover);
+    }
+
+    .key.clear {
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent), #262018;
+      color: #ffd69a;
+    }
+
+    .key.span-2 {
+      grid-column: span 2;
+    }
+
+    @media (max-width: 420px) {
+      .calculator {
+        padding: 14px;
+        border-radius: 20px;
+      }
+
+      .keys {
+        gap: 8px;
+      }
+
+      button {
+        min-height: 52px;
+        border-radius: 13px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="calculator" aria-label="Calculator">
+    <section class="display" aria-live="polite">
+      <div class="formula" id="formulaDisplay"></div>
+      <div class="result" id="resultDisplay">0</div>
+    </section>
+
+    <ol class="history" id="historyList" aria-label="History"></ol>
+
+    <section class="keys" aria-label="Keys">
+      <button class="key clear" data-action="clear">C</button>
+      <button class="key operator" data-action="operator" data-value="/">&#247;</button>
+      <button class="key operator" data-action="operator" data-value="*">&times;</button>
+      <button class="key operator" data-action="operator" data-value="-">&minus;</button>
+
+      <button class="key" data-action="number" data-value="7">7</button>
+      <button class="key" data-action="number" data-value="8">8</button>
+      <button class="key" data-action="number" data-value="9">9</button>
+      <button class="key operator" data-action="operator" data-value="+">+</button>
+
+      <button class="key" data-action="number" data-value="4">4</button>
+      <button class="key" data-action="number" data-value="5">5</button>
+      <button class="key" data-action="number" data-value="6">6</button>
+      <button class="key equals" data-action="equals">=</button>
+
+      <button class="key" data-action="number" data-value="1">1</button>
+      <button class="key" data-action="number" data-value="2">2</button>
+      <button class="key" data-action="number" data-value="3">3</button>
+
+      <button class="key span-2" data-action="number" data-value="0">0</button>
+      <button class="key" data-action="decimal" data-value=".">.</button>
+    </section>
+  </main>
+
+  <script>
+    const formulaDisplay = document.getElementById("formulaDisplay");
+    const resultDisplay = document.getElementById("resultDisplay");
+    const historyList = document.getElementById("historyList");
+    const keys = document.querySelector(".keys");
+
+    const operatorSymbols = {
+      "+": "+",
+      "-": "−",
+      "*": "×",
+      "/": "÷",
+    };
+
+    let firstNumber = "";
+    let operator = "";
+    let secondNumber = "";
+    let currentExpression = "";
+    let lastResult = "0";
+    let isNewInput = true;
+    const history = [];
+
+    function getOperatorSymbol(value) {
+      return operatorSymbols[value] || value;
+    }
+
+    function formatResult(value) {
+      if (!Number.isFinite(value)) {
+        return "Error";
+      }
+
+      const rounded = Math.round((value + Number.EPSILON) * 1e10) / 1e10;
+      return String(rounded);
+    }
+
+    function updateCurrentExpression() {
+      if (!firstNumber) {
+        currentExpression = "";
+        return;
+      }
+
+      if (!operator) {
+        currentExpression = firstNumber;
+        return;
+      }
+
+      currentExpression = secondNumber
+        ? `${firstNumber} ${getOperatorSymbol(operator)} ${secondNumber}`
+        : `${firstNumber} ${getOperatorSymbol(operator)}`;
+    }
+
+    function updateDisplay() {
+      formulaDisplay.textContent = currentExpression;
+      resultDisplay.textContent = isNewInput ? lastResult : (secondNumber || firstNumber || "0");
+      updateHistoryView();
+    }
+
+    function updateHistoryView() {
+      historyList.innerHTML = "";
+
+      history.slice(0, 5).forEach((entry) => {
+        const li = document.createElement("li");
+        li.textContent = entry;
+        historyList.appendChild(li);
+      });
+
+      while (historyList.children.length < 5) {
+        const li = document.createElement("li");
+        li.textContent = "\u00A0";
+        historyList.appendChild(li);
+      }
+    }
+
+    function pushHistory(expression, result) {
+      history.unshift(`${expression} = ${result}`);
+      history.splice(5);
+    }
+
+    function clearState(preserveHistory) {
+      firstNumber = "";
+      operator = "";
+      secondNumber = "";
+      currentExpression = "";
+      lastResult = "0";
+      isNewInput = true;
+
+      if (!preserveHistory) {
+        history.length = 0;
+      }
+    }
+
+    function handleNumber(value) {
+      if (isNewInput && !operator) {
+        firstNumber = "";
+        secondNumber = "";
+        currentExpression = "";
+        lastResult = "0";
+        isNewInput = false;
+      }
+
+      if (!operator) {
+        firstNumber = firstNumber === "0" ? value : firstNumber + value;
+      } else {
+        secondNumber = secondNumber === "0" ? value : secondNumber + value;
+      }
+
+      updateCurrentExpression();
+      updateDisplay();
+    }
+
+    function handleDecimal() {
+      if (isNewInput && !operator) {
+        firstNumber = "";
+        secondNumber = "";
+        currentExpression = "";
+        lastResult = "0";
+        isNewInput = false;
+      }
+
+      if (!operator) {
+        if (!firstNumber.includes(".")) {
+          firstNumber = firstNumber === "" ? "0." : `${firstNumber}.`;
+        }
+      } else if (!secondNumber.includes(".")) {
+        secondNumber = secondNumber === "" ? "0." : `${secondNumber}.`;
+      }
+
+      updateCurrentExpression();
+      updateDisplay();
+    }
+
+    function calculate() {
+      if (!firstNumber || !operator || !secondNumber) {
+        updateCurrentExpression();
+        updateDisplay();
+        return;
+      }
+
+      const a = parseFloat(firstNumber);
+      const b = parseFloat(secondNumber);
+      const expression = `${firstNumber} ${getOperatorSymbol(operator)} ${secondNumber}`;
+
+      let result;
+      switch (operator) {
+        case "+":
+          result = a + b;
+          break;
+        case "-":
+          result = a - b;
+          break;
+        case "*":
+          result = a * b;
+          break;
+        case "/":
+          if (b === 0) {
+            lastResult = "Error";
+            currentExpression = expression;
+            pushHistory(expression, "Error");
+            firstNumber = "";
+            operator = "";
+            secondNumber = "";
+            isNewInput = true;
+            updateDisplay();
+            return;
+          }
+          result = a / b;
+          break;
+      }
+
+      lastResult = formatResult(result);
+      currentExpression = expression;
+      pushHistory(expression, lastResult);
+      firstNumber = lastResult;
+      operator = "";
+      secondNumber = "";
+      isNewInput = true;
+      updateDisplay();
+    }
+
+    function handleOperator(value) {
+      if (!firstNumber && lastResult !== "0" && lastResult !== "Error") {
+        firstNumber = lastResult;
+      }
+
+      if (!firstNumber) {
+        updateDisplay();
+        return;
+      }
+
+      if (operator && secondNumber) {
+        calculate();
+        if (lastResult === "Error") {
+          return;
+        }
+        firstNumber = lastResult;
+      }
+
+      operator = value;
+      secondNumber = "";
+      isNewInput = false;
+      updateCurrentExpression();
+      updateDisplay();
+    }
+
+    function clearAll() {
+      clearState(true);
+      updateDisplay();
+    }
+
+    keys.addEventListener("click", (event) => {
+      const button = event.target.closest("button");
+      if (!button) {
+        return;
+      }
+
+      const action = button.dataset.action;
+      const value = button.dataset.value;
+
+      if (action === "number") {
+        handleNumber(value);
+      } else if (action === "decimal") {
+        handleDecimal();
+      } else if (action === "operator") {
+        handleOperator(value);
+      } else if (action === "equals") {
+        calculate();
+      } else if (action === "clear") {
+        clearAll();
+      }
+    });
+
+    document.addEventListener("keydown", (event) => {
+      const { key } = event;
+
+      if (/^[0-9]$/.test(key)) {
+        handleNumber(key);
+        return;
+      }
+
+      if (key === ".") {
+        handleDecimal();
+        return;
+      }
+
+      if (key === "+" || key === "-" || key === "*" || key === "/") {
+        handleOperator(key);
+        return;
+      }
+
+      if (key === "Enter" || key === "=") {
+        event.preventDefault();
+        calculate();
+        return;
+      }
+
+      if (key === "Escape" || key.toLowerCase() === "c") {
+        clearAll();
+      }
+    });
+
+    updateDisplay();
+  </script>
+</body>
+</html>
