@@ -102,7 +102,13 @@
     .keys {
       margin-top: 16px;
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      grid-template-areas:
+        "backspace clear divide multiply"
+        "seven eight nine subtract"
+        "four five six add"
+        "one two three equals"
+        "zero zero decimal equals";
       gap: 10px;
     }
 
@@ -144,7 +150,7 @@
     .key.equals {
       background: linear-gradient(180deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.04)), var(--equals);
       color: #211b08;
-      grid-row: span 2;
+      grid-area: equals;
     }
 
     .key.equals:hover {
@@ -154,10 +160,73 @@
     .key.clear {
       background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent), #262018;
       color: #ffd69a;
+      grid-area: clear;
+    }
+
+    .key.backspace {
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent), #2a1f24;
+      color: #ffb8d1;
+      grid-area: backspace;
+    }
+
+    .key.operator[data-value="/"] {
+      grid-area: divide;
+    }
+
+    .key.operator[data-value="*"] {
+      grid-area: multiply;
+    }
+
+    .key.operator[data-value="-"] {
+      grid-area: subtract;
+    }
+
+    .key.operator[data-value="+"] {
+      grid-area: add;
+    }
+
+    .key[data-action="number"][data-value="7"] {
+      grid-area: seven;
+    }
+
+    .key[data-action="number"][data-value="8"] {
+      grid-area: eight;
+    }
+
+    .key[data-action="number"][data-value="9"] {
+      grid-area: nine;
+    }
+
+    .key[data-action="number"][data-value="4"] {
+      grid-area: four;
+    }
+
+    .key[data-action="number"][data-value="5"] {
+      grid-area: five;
+    }
+
+    .key[data-action="number"][data-value="6"] {
+      grid-area: six;
+    }
+
+    .key[data-action="number"][data-value="1"] {
+      grid-area: one;
+    }
+
+    .key[data-action="number"][data-value="2"] {
+      grid-area: two;
+    }
+
+    .key[data-action="number"][data-value="3"] {
+      grid-area: three;
     }
 
     .key.span-2 {
-      grid-column: span 2;
+      grid-area: zero;
+    }
+
+    .key[data-action="decimal"] {
+      grid-area: decimal;
     }
 
     @media (max-width: 420px) {
@@ -187,24 +256,25 @@
     <ol class="history" id="historyList" aria-label="History"></ol>
 
     <section class="keys" aria-label="Keys">
+      <button class="key backspace" data-action="backspace">BS</button>
       <button class="key clear" data-action="clear">C</button>
       <button class="key operator" data-action="operator" data-value="/">&#247;</button>
       <button class="key operator" data-action="operator" data-value="*">&times;</button>
-      <button class="key operator" data-action="operator" data-value="-">&minus;</button>
 
       <button class="key" data-action="number" data-value="7">7</button>
       <button class="key" data-action="number" data-value="8">8</button>
       <button class="key" data-action="number" data-value="9">9</button>
-      <button class="key operator" data-action="operator" data-value="+">+</button>
+      <button class="key operator" data-action="operator" data-value="-">&minus;</button>
 
       <button class="key" data-action="number" data-value="4">4</button>
       <button class="key" data-action="number" data-value="5">5</button>
       <button class="key" data-action="number" data-value="6">6</button>
-      <button class="key equals" data-action="equals">=</button>
+      <button class="key operator" data-action="operator" data-value="+">+</button>
 
       <button class="key" data-action="number" data-value="1">1</button>
       <button class="key" data-action="number" data-value="2">2</button>
       <button class="key" data-action="number" data-value="3">3</button>
+      <button class="key equals" data-action="equals">=</button>
 
       <button class="key span-2" data-action="number" data-value="0">0</button>
       <button class="key" data-action="decimal" data-value=".">.</button>
@@ -231,6 +301,7 @@
     let lastResult = "0";
     let isNewInput = true;
     const history = [];
+    const calculationSnapshots = [];
 
     function getOperatorSymbol(value) {
       return operatorSymbols[value] || value;
@@ -286,6 +357,44 @@
     function pushHistory(expression, result) {
       history.unshift(`${expression} = ${result}`);
       history.splice(5);
+    }
+
+    function pushCalculationSnapshot(expression, result) {
+      calculationSnapshots.push({ expression, result });
+    }
+
+    function restorePreviousCalculation() {
+      if (calculationSnapshots.length === 0) {
+        clearState(true);
+        updateHistoryView();
+        updateDisplay();
+        return;
+      }
+
+      calculationSnapshots.pop();
+      history.shift();
+
+      if (calculationSnapshots.length === 0) {
+        firstNumber = "";
+        operator = "";
+        secondNumber = "";
+        currentExpression = "";
+        lastResult = "0";
+        isNewInput = true;
+        updateHistoryView();
+        updateDisplay();
+        return;
+      }
+
+      const previous = calculationSnapshots[calculationSnapshots.length - 1];
+      firstNumber = previous.result;
+      operator = "";
+      secondNumber = "";
+      currentExpression = previous.expression;
+      lastResult = previous.result;
+      isNewInput = true;
+      updateHistoryView();
+      updateDisplay();
     }
 
     function clearState(preserveHistory) {
@@ -368,6 +477,7 @@
             lastResult = "Error";
             currentExpression = expression;
             pushHistory(expression, "Error");
+            pushCalculationSnapshot(expression, "Error");
             firstNumber = "";
             operator = "";
             secondNumber = "";
@@ -382,6 +492,7 @@
       lastResult = formatResult(result);
       currentExpression = expression;
       pushHistory(expression, lastResult);
+      pushCalculationSnapshot(expression, lastResult);
       firstNumber = lastResult;
       operator = "";
       secondNumber = "";
@@ -436,6 +547,8 @@
         handleOperator(value);
       } else if (action === "equals") {
         calculate();
+      } else if (action === "backspace") {
+        restorePreviousCalculation();
       } else if (action === "clear") {
         clearAll();
       }
@@ -467,6 +580,12 @@
 
       if (key === "Escape" || key.toLowerCase() === "c") {
         clearAll();
+        return;
+      }
+
+      if (key === "Backspace") {
+        event.preventDefault();
+        restorePreviousCalculation();
       }
     });
 
